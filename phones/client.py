@@ -33,7 +33,7 @@ def task_submission(data):
         return
 
     job_id = data['job']['id']
-
+    persist = data['job']['persist']
     sio.emit('task_acknowledgement', {'device_id': device_id, 'job_id' : job_id})
 
     print('Working on job id={}: '.format(job_id))
@@ -41,9 +41,9 @@ def task_submission(data):
 
     if data['job']['code_url'] != '':
         # process the task from git repo
-        process_git_task(data['job']['code_url'])
+        process_git_task(data['job']['code_url'],persist)
     else:
-        process_zip_task(data['job']['code_bytes'])
+        process_zip_task(data['job']['code_bytes'],persist)
 
     result = ""
     with open("./output", "r") as f:
@@ -63,7 +63,7 @@ def task_submission(data):
     print("Response from notifying server of job status: {}".format(status))
     print(resp)
 
-def process_git_task(url):
+def process_git_task(url): #no persistence
     # clone the git repo
     os.system('git clone {}'.format(url))
     # get the directory
@@ -75,7 +75,7 @@ def process_git_task(url):
     # remove the git repo
     os.system('rm -rf {}'.format(directory))
 
-def process_zip_task(contents):
+def process_zip_task(contents,persist=''):
     owd = os.getcwd()
     zipObj = ZipFile('temp.zip', 'w')
     for obj in contents:
@@ -91,6 +91,8 @@ def process_zip_task(contents):
     os.system('echo $? > ../../status')
     os.system(f'mv output_tmp {owd}') #hmm what happens if no output folder, need to zip
     os.chdir(owd)
+    if persist=='1': #jfs replace w/corrct
+        os.system('mv temp/* /home/jen/bucket/')
     os.system('rm -rf temp')
 sio.connect(f"{SERVER_ENDPOINT}/?device_id={device_id}")
 sio.wait()

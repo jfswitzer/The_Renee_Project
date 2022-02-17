@@ -49,6 +49,7 @@ if __name__ == "__main__":
     job_spec = {
         "code_url": code_url,
         "contents": contents,
+        "persist": 1,
         "resource_requirements" : {
             "cpus" : cpus,
             "memory_mb" : memory_mb,

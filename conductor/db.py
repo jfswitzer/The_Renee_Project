@@ -131,6 +131,7 @@ class Job(BaseModel):
     # Specification
     code_url = TextField()
     code_bytes = TextField()
+    persist = TextField()
     time_created = DateTimeField(default=datetime.datetime.utcnow)
     time_updated = DateTimeField()
 
@@ -164,6 +165,7 @@ class Job(BaseModel):
             },
             "code_url" : self.code_url,
             "code_bytes": self.code_bytes,
+            "persist": self.persist,
             "time_created" : str(self.time_created),
             "time_updated" : str(self.time_updated)
         }
@@ -175,13 +177,14 @@ def create_device(device_id, smart_plug_key, metadata):
     device.save(force_insert=True)
 
 def create_job(job_spec):
-    assert "resource_requirements" in job_spec and "code_url" in job_spec
+    assert "resource_requirements" in job_spec and "code_url" in job_spec and "persist" in job_spec
     job = Job(status=Job.UNASSIGNED,
               cpus=job_spec["resource_requirements"].get("cpus", -1),
               memory_mb=job_spec["resource_requirements"].get("memory_mb", -1),
               max_runtime_secs=job_spec["resource_requirements"].get("max_runtime_secs", -1),
               code_url = job_spec['code_url'],
-              code_bytes = job_spec['contents'])
+              code_bytes = job_spec['contents'],
+              persist=job_spec['persist'])
     job.save()
     return job
 
