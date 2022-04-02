@@ -1,0 +1,3 @@
+[submodule "streetlight"]
+	path = streetlight
+	url = https://github.com/sofiegmerek/streetlight.git
