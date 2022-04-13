@@ -1,3 +1,3 @@
-rm database.db
-python3 create_db.py
-python3 app.py
+rm $PWD/database.db
+python3 $PWD/create_db.py
+python3 $PWD/app.py
