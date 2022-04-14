@@ -38,9 +38,7 @@ def task_submission(data):
     print('Working on job id={}: '.format(job_id))
     #print(data['job'])
 
-    if data['job']['persist']=='1':
-        process_persist_task(data['job']['code_url'])
-    elif data['job']['code_url'] != '':
+    if data['job']['code_url'] != '':
         # process the task from git repo
         process_git_task(data['job']['code_url'])
     else:
@@ -64,12 +62,13 @@ def task_submission(data):
     print("Response from notifying server of job status: {}".format(status))
     print(resp)
 
-def process_git_task(url): #no persistence
+def process_git_task(url): #not really in use anymore
     # clone the git repo
     os.system('git clone {}'.format(url))
     # get the directory
     directory = url.split('/')[-1].replace('.git', '')
     # run the file and store in a file
+    os.system('cp cli.py ./{}/'.format(directory))    
     os.system('./{}/main.sh > ./output'.format(directory))
     # check the exit code and store in a file
     os.system('echo $? > ./status')
@@ -84,31 +83,12 @@ def process_zip_task(contents,persist=''):
         byts = obj['bytes']
         zipObj.writestr(fn,byts)
     zipObj.extractall(path='temp')
-    os.system('rm temp.zip')    
+    os.system('rm temp.zip')
+    os.system('cp cli.py temp/main/')
     os.chdir(owd+'/temp/main')
     os.system('mkdir output_tmp')
     os.system('chmod u+x main.sh')
     os.system('./main.sh > ../../output')
-    os.system('echo $? > ../../status')
-    os.system(f'mv output_tmp {owd}') #hmm what happens if no output folder, need to zip
-    os.chdir(owd)
-    os.system('rm -rf temp')
-
-def process_persist_task(contents):
-    #todo fill in w/code for a looping task
-    #main question is how make sure the task doesn't time out
-    owd = os.getcwd()
-    zipObj = ZipFile('temp.zip', 'w')
-    for obj in contents:
-        fn = obj['filename']
-        byts = obj['bytes']
-        zipObj.writestr(fn,byts)
-    zipObj.extractall(path='temp')
-    os.system('rm temp.zip')    
-    os.chdir(owd+'/temp/main')
-    os.system('mkdir output_tmp')
-    os.system('chmod u+x main.sh')
-    os.system('./main.sh')
     os.system('echo $? > ../../status')
     os.system(f'mv output_tmp {owd}') #hmm what happens if no output folder, need to zip
     os.chdir(owd)
