@@ -33,17 +33,18 @@ def task_submission(data):
         return
 
     job_id = data['job']['id']
-    persist = data['job']['persist']
     sio.emit('task_acknowledgement', {'device_id': device_id, 'job_id' : job_id})
 
     print('Working on job id={}: '.format(job_id))
-    print(data['job'])
+    #print(data['job'])
 
-    if data['job']['code_url'] != '':
+    if data['job']['persist']=='1':
+        process_persist_task(data['job']['code_url'])
+    elif data['job']['code_url'] != '':
         # process the task from git repo
-        process_git_task(data['job']['code_url'],persist)
+        process_git_task(data['job']['code_url'])
     else:
-        process_zip_task(data['job']['code_bytes'],persist)
+        process_zip_task(data['job']['code_bytes'])
 
     result = ""
     with open("./output", "r") as f:
@@ -91,8 +92,28 @@ def process_zip_task(contents,persist=''):
     os.system('echo $? > ../../status')
     os.system(f'mv output_tmp {owd}') #hmm what happens if no output folder, need to zip
     os.chdir(owd)
-    if persist=='1': #jfs replace w/corrct
-        os.system('mv temp/* /home/jen/bucket/')
     os.system('rm -rf temp')
+
+def process_persist_task(contents):
+    #todo fill in w/code for a looping task
+    #main question is how make sure the task doesn't time out
+    owd = os.getcwd()
+    zipObj = ZipFile('temp.zip', 'w')
+    for obj in contents:
+        fn = obj['filename']
+        byts = obj['bytes']
+        zipObj.writestr(fn,byts)
+    zipObj.extractall(path='temp')
+    os.system('rm temp.zip')    
+    os.chdir(owd+'/temp/main')
+    os.system('mkdir output_tmp')
+    os.system('chmod u+x main.sh')
+    os.system('./main.sh')
+    os.system('echo $? > ../../status')
+    os.system(f'mv output_tmp {owd}') #hmm what happens if no output folder, need to zip
+    os.chdir(owd)
+    os.system('rm -rf temp')
+
+
 sio.connect(f"{SERVER_ENDPOINT}/?device_id={device_id}")
 sio.wait()
