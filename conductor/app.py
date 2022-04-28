@@ -47,13 +47,14 @@ class Checker:
             # ==== for each job ====
             for job in jobs:
                 job_json = job.to_json()
+                persist = True if job_json['persist']=='1' else False
                 job_max_secs = job_json["resource_requirements"]["max_runtime_secs"]
 
                 # Check if job timed out, if so then try to cancel it and reschedule it.
                 if job_max_secs > 0 and job_json["status"] == job.ASSIGNED and job_json["assigned_device_id"] is not None:
                     time_updated = datetime.strptime(job_json["time_updated"], '%Y-%m-%d %H:%M:%S.%f')
                     timeout_datetime = timedelta(seconds = job_max_secs) + time_updated
-                    if timeout_datetime < datetime.utcnow():
+                    if timeout_datetime < datetime.utcnow() and not persist:
 
                         # update device's num_failed_jobs
                         device = db.get_device(job_json["assigned_device_id"])
@@ -130,11 +131,9 @@ class Checker:
     def cancel_and_reschedule_job(self, job_id):
         job = db.get_job(job_id)
         job_json = job.to_json()
-
         # cancel the job
         job.cancel()
-
-        print(f"[JOB {job.id}] cancelled and rescheduled.")
+        print(f"[JOB {job.id}] will be cancelled and rescheduled.")
 
         # Reschedule the job for another device, if and only if the number of retries don't go past 3.
         if job.can_be_retried:
@@ -142,7 +141,14 @@ class Checker:
                 print(f"[JOB {job.id}] Rescheduled")
         else:
             print(f"[JOB {job.id}] Reschedule Limit Hit")
-
+    def cancel_job(self, job_id):
+        self.remove_pending_acknowledgement(job_id)
+        job = db.get_job(job_id)
+        job_json = job.to_json()
+        job.cancel()
+        job.status = db.Job.SUCCEEDED
+        job.assigned_device = None
+        job.save()        
 checker = Checker()
 
 eventlet.spawn(checker.check_jobs)
@@ -240,6 +246,11 @@ def job_status(job_id):
 
     status_code = db.Job.STATUS_CODES[job.status]
     return jsonify(success=True, status_code=status_code)
+
+@app.route("/jobs/<int:job_id>/cancel/") #jfs
+def cancel_job(job_id):
+    checker.cancel_job(job_id)
+    return jsonify(success=True)
 
 @app.route("/jobs/<int:job_id>/update_status/", methods=['POST'])
 def job_update_status(job_id):

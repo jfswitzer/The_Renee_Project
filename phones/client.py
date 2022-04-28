@@ -33,17 +33,16 @@ def task_submission(data):
         return
 
     job_id = data['job']['id']
-    persist = data['job']['persist']
     sio.emit('task_acknowledgement', {'device_id': device_id, 'job_id' : job_id})
 
     print('Working on job id={}: '.format(job_id))
-    print(data['job'])
+    #print(data['job'])
 
     if data['job']['code_url'] != '':
         # process the task from git repo
-        process_git_task(data['job']['code_url'],persist)
+        process_git_task(data['job']['code_url'])
     else:
-        process_zip_task(data['job']['code_bytes'],persist)
+        process_zip_task(data['job']['code_bytes'])
 
     result = ""
     with open("./output", "r") as f:
@@ -63,12 +62,13 @@ def task_submission(data):
     print("Response from notifying server of job status: {}".format(status))
     print(resp)
 
-def process_git_task(url): #no persistence
+def process_git_task(url): #not really in use anymore
     # clone the git repo
     os.system('git clone {}'.format(url))
     # get the directory
     directory = url.split('/')[-1].replace('.git', '')
     # run the file and store in a file
+    os.system('cp cli.py ./{}/'.format(directory))    
     os.system('./{}/main.sh > ./output'.format(directory))
     # check the exit code and store in a file
     os.system('echo $? > ./status')
@@ -83,7 +83,8 @@ def process_zip_task(contents,persist=''):
         byts = obj['bytes']
         zipObj.writestr(fn,byts)
     zipObj.extractall(path='temp')
-    os.system('rm temp.zip')    
+    os.system('rm temp.zip')
+    os.system('cp cli.py temp/main/')
     os.chdir(owd+'/temp/main')
     os.system('mkdir output_tmp')
     os.system('chmod u+x main.sh')
@@ -91,8 +92,8 @@ def process_zip_task(contents,persist=''):
     os.system('echo $? > ../../status')
     os.system(f'mv output_tmp {owd}') #hmm what happens if no output folder, need to zip
     os.chdir(owd)
-    if persist=='1': #jfs replace w/corrct
-        os.system('mv temp/* /home/jen/bucket/')
     os.system('rm -rf temp')
+
+
 sio.connect(f"{SERVER_ENDPOINT}/?device_id={device_id}")
 sio.wait()

@@ -16,6 +16,9 @@ def get_job_status(job_id):
     resp = requests.get(f"{SERVER_ENDPOINT}/jobs/{job_id}/status/").json()
     return resp['status_code']
 
+def cancel_job(job_id):
+    resp = requests.get(f"{SERVER_ENDPOINT}/jobs/{job_id}/cancel/").json()
+    print(resp)
 #UNASSIGNED", "ASSIGNED", "FAILED", "SUCCEEDED
 STATUS_CODE_MESSAGES = {
     "UNASSIGNED" : "The job is unassigned.",
@@ -75,7 +78,10 @@ if __name__ == "__main__":
     spinner = Halo(text="Waiting for job updates", spinner='dots')
     spinner.start()
 
-    while True:
+    import time
+
+    t_end = time.time() + 60
+    while time.time() < t_end:
          try:
              new_job_status_code = get_job_status(job_id)
              if new_job_status_code != job_status_code:
@@ -94,3 +100,4 @@ if __name__ == "__main__":
          except (KeyboardInterrupt, SystemExit):
              spinner.stop()
              break
+    cancel_job(job_id)
