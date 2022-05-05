@@ -246,7 +246,8 @@ def job_status(job_id):
         return jsonify(success=False, error_code="INVALID_JOB_ID"), 400
 
     status_code = db.Job.STATUS_CODES[job.status]
-    return jsonify(success=True, status_code=status_code)
+    result = job.result
+    return jsonify(success=True, status_code=status_code,result=result)
 
 @app.route("/jobs/<int:job_id>/cancel/") #jfs
 def cancel_job(job_id):
@@ -288,6 +289,7 @@ def job_update_status(job_id):
         if result:
             print(f"\n\n[JOB RESULT] Received output for job id {job_id}:")
             print(result, "\n\n")
+        job.result = result
 
     job.save()
     return jsonify(success=True)

@@ -135,6 +135,9 @@ class Job(BaseModel):
     time_created = DateTimeField(default=datetime.datetime.utcnow)
     time_updated = DateTimeField()
 
+    #Result
+    result = TextField()
+
     def save(self, *args, **kwargs):
         self.time_updated = datetime.datetime.utcnow()
         return super(Job, self).save(*args, **kwargs)
@@ -167,7 +170,8 @@ class Job(BaseModel):
             "code_bytes": self.code_bytes,
             "persist": self.persist,
             "time_created" : str(self.time_created),
-            "time_updated" : str(self.time_updated)
+            "time_updated" : str(self.time_updated),
+            "result": self.result
         }
 
 
@@ -184,7 +188,8 @@ def create_job(job_spec):
               max_runtime_secs=job_spec["resource_requirements"].get("max_runtime_secs", -1),
               code_url = job_spec['code_url'],
               code_bytes = job_spec['contents'],
-              persist=job_spec['persist'])
+              persist=job_spec['persist'],
+              result='')
     job.save()
     return job
 

@@ -46,7 +46,7 @@ def task_submission(data):
 
     result = ""
     with open("./output", "r") as f:
-        result += f.readline()
+        result += f.read()
     
     #time.sleep(5)
 
