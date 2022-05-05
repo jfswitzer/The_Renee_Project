@@ -238,6 +238,7 @@ def job_submit():
 
     return jsonify(success=True, job_id=job.id)
 
+#todo --- add result to the db, return it here 
 @app.route("/jobs/<int:job_id>/status/")
 def job_status(job_id):
     job = db.get_job(job_id)
