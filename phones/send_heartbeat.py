@@ -4,8 +4,8 @@ import threading
 import sys
 
 HEARTBEAT_INTERVAL_SECS = 0.33
-#SERVER_ENDPOINT = "http://localhost:5000"
-SERVER_ENDPOINT = "http://192.168.1.65:5000"
+SERVER_ENDPOINT = "http://localhost:5000"
+#SERVER_ENDPOINT = "http://192.168.1.65:5000"
 
 # get the device id (should already exist on the phone)
 with open("./id.txt", "r") as f:

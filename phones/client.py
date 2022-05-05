@@ -6,8 +6,8 @@ import sys
 import json
 from zipfile import ZipFile
 
-#SERVER_ENDPOINT = "http://localhost:5000"
-SERVER_ENDPOINT = "http://192.168.1.65:5000"
+SERVER_ENDPOINT = "http://localhost:5000"
+#SERVER_ENDPOINT = "http://192.168.1.65:5000"
 STATUS_FAILED = 2
 STATUS_SUCCEDED = 3
 
