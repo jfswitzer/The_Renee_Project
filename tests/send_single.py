@@ -8,12 +8,16 @@ from halo import Halo
 
 JOB_STATUS_POLL_INTERVAL_SECS = 0.1
 
-#SERVER_ENDPOINT = "http://localhost:5000"
-SERVER_ENDPOINT = "http://192.168.1.65:5000"
+SERVER_ENDPOINT = "http://localhost:5000"
+#SERVER_ENDPOINT = "http://192.168.1.65:5000"
 submit_job_url = f"{SERVER_ENDPOINT}/jobs/submit/"
     
 def get_job_status(job_id):
     resp = requests.get(f"{SERVER_ENDPOINT}/jobs/{job_id}/status/").json()
+    if resp['result'] != '':
+        print('~~~~~ RESPONSE ~~~~~~')
+        print(resp)
+        print('~~~~~~~~~~~~~~~~~~~~~')    
     return resp['status_code']
 
 def cancel_job(job_id):

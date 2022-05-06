@@ -9,7 +9,8 @@ from halo import Halo
 from tinydb import TinyDB, Query
 
 JOB_STATUS_POLL_INTERVAL_SECS = 0.1
-SERVER_ENDPOINT = "http://192.168.1.65:5000" #generalize
+SERVER_ENDPOINT = "http://localhost:5000"
+#SERVER_ENDPOINT = "http://192.168.1.65:5000" #generalize
 submit_job_url = f"{SERVER_ENDPOINT}/jobs/submit/"
 STATUS_CODE_MESSAGES = {
     "UNASSIGNED" : "The job is unassigned.",
