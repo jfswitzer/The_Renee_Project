@@ -1,0 +1,3 @@
+1582184843665, small_vehicle, 9, 258, 
+1575368979316, large_vehicle, 6, 248, 
+1583819489199, small_vehicle, 3, 325, 

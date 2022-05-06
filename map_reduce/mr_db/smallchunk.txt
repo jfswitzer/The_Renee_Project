@@ -1,3 +1,4 @@
+timestamp, vehicle_size, count, direction
 1574017025373,small_vehicle,10,38
 1583819489199,small_vehicle,3,325
 1566280980473,small_vehicle,9,152

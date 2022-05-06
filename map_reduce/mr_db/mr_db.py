@@ -1,13 +1,15 @@
 from tinydb import TinyDB, Query
 db = TinyDB('db.json')
 
-labels = "timestamp, vehicle_size, count, direction" 
-keys = labels.split(", ")
+#labels = "timestamp, vehicle_size, count, direction" 
+#keys = labels.split(", ")
 #key is timestamp, given file, each time is a row 
 def put_in_db(infile):
     table = db.table('table_name')
     text_file = open(infile, "r+")
-    Lines = text_file.readlines()
+    labels = text_file.readline()
+    keys = labels.split(", ")
+    Lines = text_file.readlines()[1:]
     for line in Lines:
         dictionary ={}
         line = line.strip()
