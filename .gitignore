@@ -1,6 +1,7 @@
 benchmarks/output
 benchmarks/status
 phones/output
+phones/temp/*
 output
 status
 *~
