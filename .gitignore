@@ -1,11 +1,11 @@
 benchmarks/output
 benchmarks/status
 phones/output
+phones/temp/*
 output
 status
 *~
 *__pycache__
-*zip
 *icloud
 *xz
 *jpg

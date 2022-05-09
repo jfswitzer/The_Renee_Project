@@ -6,8 +6,7 @@ import requests
 import sys
 import time
 from halo import Halo
-from tinydb import TinyDB, Query
-
+import mr_db
 JOB_STATUS_POLL_INTERVAL_SECS = 0.1
 SERVER_ENDPOINT = "http://localhost:5000"
 #SERVER_ENDPOINT = "http://192.168.1.65:5000" #generalize
@@ -34,7 +33,6 @@ class MapReduce():
         self.mappers_todo = set(chunks.keys())
         self.reducers_todo = set()
         self.timeout = timeout
-        self.db_file = TinyDB(db_file)
 
     def checker(self,job_id,chunk_id):
         job_status_code = None    
@@ -55,7 +53,7 @@ class MapReduce():
                         spinner.start("Waiting for job updates")
                     else:
                         # the job has succeeded
-                        print(resp)
+                        mr_db.put_in_db(resp['result'])
                         self.mappers_todo.discard(chunk_id)
                         spinner.stop_and_persist(symbol='🦄'.encode('utf-8'), text=STATUS_CODE_MESSAGES[new_job_status_code])
                         break
