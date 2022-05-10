@@ -7,8 +7,12 @@ import sys
 import time
 from halo import Halo
 import mr_db
+import json
 JOB_STATUS_POLL_INTERVAL_SECS = 0.1
-SERVER_ENDPOINT = "http://localhost:5000"
+ENDPOINT = 'localhost'
+with open("../config.json") as f:
+    ENDPOINT = json.load(f)["conductor_IP"]
+SERVER_ENDPOINT = f"http://{ENDPOINT}:5000"
 #SERVER_ENDPOINT = "http://192.168.1.65:5000" #generalize
 submit_job_url = f"{SERVER_ENDPOINT}/jobs/submit/"
 STATUS_CODE_MESSAGES = {
@@ -23,7 +27,7 @@ def get_job_status(job_id):
     resp = requests.get(f"{SERVER_ENDPOINT}/jobs/{job_id}/status/").json()
     return resp
 class MapReduce():
-    def __init__(self,mapper_file,reducer_file,n_machines,chunks,timeout,db_file):
+    def __init__(self,mapper_file,reducer_file,n_machines,chunks,timeout):
         #todo actually deal with the number of machines
         #chunks is a dict of the form chunk_id : chunk location
         self.mapper = mapper_file
@@ -52,9 +56,7 @@ class MapReduce():
                         spinner.fail(STATUS_CODE_MESSAGES[new_job_status_code])
                         spinner.start("Waiting for job updates")
                     else:
-                        # the job has succeeded
-                        mr_db.put_in_db(resp['result'])
-                        self.mappers_todo.discard(chunk_id)
+                        self.mapper_success(resp,chunk_id)
                         spinner.stop_and_persist(symbol='🦄'.encode('utf-8'), text=STATUS_CODE_MESSAGES[new_job_status_code])
                         break
                     job_status_code = new_job_status_code
@@ -62,7 +64,14 @@ class MapReduce():
             except (KeyboardInterrupt, SystemExit):
                 spinner.stop()
                 break
-
+    def mapper_success(self,response_message,chunk_id):
+        # the job has succeeded
+        outfile = f"chunk{chunk_id}.txt"
+        with open(outfile,'w+') as f:
+            f.write(response_message['result'])
+        #TODO: move to db
+        #mr_db.put_in_db(outfile)
+        self.mappers_todo.discard(chunk_id)        
     def submit_job(self,zipf,chunk_id):
         """zipfile points to the zipfile that contains the code"""
         cpus = -1
@@ -86,15 +95,17 @@ class MapReduce():
         print ("Submitting job...")
         res = requests.post(submit_job_url, json=job_spec)
         if res.status_code != 200:
-            print ("Could not submit job!")
+            print ("Could not submit job, trying again..")
             time.sleep(1) #todo ?
             self.submit_job(zipf,chunk_id)
 
         resp = res.json()
-        if not resp.get("success", False):
-            print ("Could not submit job! 2")
-            time.sleep(1) #todo ?
-            self.submit_job(zipf,chunk_id)
+        if not resp.get("job_id", False):
+            print("No job ID returned, returning..")
+            return
+        #    print ("Could not submit job! 2")
+        #    time.sleep(1) #todo ?
+        #    self.submit_job(zipf,chunk_id)
             
         job_id = resp['job_id']
         th = threading.Thread(target=self.checker,args=(job_id,chunk_id))
@@ -120,20 +131,24 @@ class MapReduce():
         while True:
             time.sleep(1)
             print(self.mappers_todo)
-    def run(self):
+    def run(self,level):
         #init the logger
-        thc = threading.Thread(target=self.logger)
-        thc.start()
+        #thc = threading.Thread(target=self.logger)
+        #thc.start()
         #asynchronously spin up the mappers
         for (chunk_id,chunk) in self.chunks.items():
+            time.sleep(2) #todo -- shouldn't be necessary
             self.init_mapper(chunk,chunk_id)
         #wait for the mappers to complete
         while len(self.mappers_todo) > 0:
             pass
-        #get all of the keys from the db
-        #keys = self.get_keys()
-        #asynchronously spin up the reducers
-        #for key in keys:
-        #    self.init_reducer(key)
-        thc.join()
+        print("HERE")
+        if level=='all':
+            pass
+            #get all of the keys from the db
+            #keys = self.get_keys()
+            #asynchronously spin up the reducers
+            #for key in keys:
+            #    self.init_reducer(key)
+        #thc.join()
     

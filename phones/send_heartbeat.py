@@ -2,9 +2,13 @@ import requests
 import time
 import threading
 import sys
+import json
 
 HEARTBEAT_INTERVAL_SECS = 0.33
-SERVER_ENDPOINT = "http://localhost:5000"
+ENDPOINT = 'localhost'
+with open("../config.json") as f:
+    ENDPOINT = json.load(f)["conductor_IP"]
+SERVER_ENDPOINT = f"http://{ENDPOINT}:5000"
 #SERVER_ENDPOINT = "http://192.168.1.65:5000"
 
 # get the device id (should already exist on the phone)
