@@ -96,7 +96,7 @@ class MapReduce():
         res = requests.post(submit_job_url, json=job_spec)
         if res.status_code != 200:
             print ("Could not submit job, trying again..")
-            time.sleep(1) #todo ?
+            time.sleep(0.5) #todo ?
             self.submit_job(zipf,chunk_id)
 
         resp = res.json()
@@ -137,7 +137,7 @@ class MapReduce():
         #thc.start()
         #asynchronously spin up the mappers
         for (chunk_id,chunk) in self.chunks.items():
-            time.sleep(2) #todo -- shouldn't be necessary
+            #time.sleep(0.4) #todo -- shouldn't really be necessary
             self.init_mapper(chunk,chunk_id)
         #wait for the mappers to complete
         while len(self.mappers_todo) > 0:
