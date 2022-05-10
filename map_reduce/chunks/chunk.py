@@ -6,7 +6,7 @@
 import random
 #1586633114988,small_vehicle,1.0,318.0
 vehicle_types = ['small_vehicle','large_vehicle']
-text_file = open("chunk50.txt", "w")
+text_file = open("chunk2.txt", "w")
 
 for i in range(1000):
   direction = random.randint(0, 360)
