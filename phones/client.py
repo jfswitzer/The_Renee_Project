@@ -6,8 +6,10 @@ import sys
 import json
 from zipfile import ZipFile
 
-SERVER_ENDPOINT = "http://localhost:5000"
-#SERVER_ENDPOINT = "http://192.168.1.65:5000"
+ENDPOINT = 'localhost'
+with open("../config.json") as f:
+    ENDPOINT = json.load(f)["conductor_IP"]
+SERVER_ENDPOINT = f"http://{ENDPOINT}:5000"
 STATUS_FAILED = 2
 STATUS_SUCCEDED = 3
 
@@ -79,9 +81,15 @@ def process_zip_task(contents,persist=''):
     owd = os.getcwd()
     zipObj = ZipFile('temp.zip', 'w')
     for obj in contents:
-        fn = obj['filename']
-        byts = obj['bytes']
-        zipObj.writestr(fn,byts)
+        try:
+            fn = obj['filename']
+            byts = obj['bytes']
+            zipObj.writestr(fn,byts)
+        except TypeError:
+            #print("TypeError")
+            #print(obj)
+            #TODO: what is happening
+            return
     zipObj.extractall(path='temp')
     os.system('rm temp.zip')
     os.system('cp cli.py temp/main/')

@@ -28,4 +28,17 @@ cp test_codes/reducer/main.zip .
 python3.8 send_single.py --zipfile main.zip
 echo '== Reducer Complete'
 
+echo '== CDN Retrieve =='
+rm main.zip
+touch $PWD/bucket/test.txt
+cp test_codes/CDN_retrieve/main.zip .
+python3.8 send_single.py --zipfile main.zip
+rm $PWD/bucket/test.txt
+echo '== CDN Retrieve Complete =='
+
+echo '== CDN Store =='
+rm main.zip
+cp test_codes/CDN_store/main.zip .
+python3.8 send_single.py --zipfile main.zip
+echo '== CDN Store Complete =='
 rm main.zip
