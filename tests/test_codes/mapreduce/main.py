@@ -5,6 +5,9 @@ import string
 
 import csv
 import time
+  
+from collections import defaultdict
+
 
 for i in range(50):
   filename="chunks/chunk"+str(i)+".txt"
@@ -39,7 +42,31 @@ for i in range(50):
     f = open(filename, "a")
     f.write("%s\t%s\t%d\t%s\n"%(datetime, vehicle_type, int(float(vehicle_count)), direction))
     f.close()
-  #n = text_file.write("%s\t%s\t%d\n"%(datetime, vehicle_type, int(float(vehicle_count))))
- # n = text_file.write("%s\t%s\t%d\t%s\n"%(datetime, vehicle_type, int(float(vehicle_count)), direction))
 
+
+word_count = defaultdict(int)
+for i in range(50):
+    filename="chunk"+str(i)+"c.txt"
+    text_file = open(filename, "r+")
+    Lines = text_file.readlines()
+    for line in Lines:
+        #print(line)
+        line = line.strip()
+        words = line.split()
+    # print("words")
+        if len(words) < 4:
+            continue
+    # print(words)
+        date = words[0]
+        hour =  words[1]
+        vehicle_type = words[2]
+        count = words[3]
+        count = int(count)
+        word_count[date+" "+hour] += count
+    for date, count in word_count.items():
+        filename="chunkreduce.txt"
+        text_file = open(filename, "a")
+        text_file.write('%s\t%s'% (date, count))
+        text_file.close()
+        #print('%s\t%s' % (date, count))
 
