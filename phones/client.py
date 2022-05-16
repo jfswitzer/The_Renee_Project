@@ -4,6 +4,7 @@ import requests
 import os
 import sys
 import json
+import threading
 from zipfile import ZipFile
 
 ENDPOINT = 'localhost'
@@ -34,31 +35,31 @@ def task_submission(data):
     if device_id != data['device_id']:
         return
 
+    th = threading.Thread(target=handle_received_task,args=(data,))
+    th.start()
+    
+def handle_received_task(data):
     job_id = data['job']['id']
     sio.emit('task_acknowledgement', {'device_id': device_id, 'job_id' : job_id})
 
     print('Working on job id={}: '.format(job_id))
     #print(data['job'])
 
-    if data['job']['code_url'] != '':
-        # process the task from git repo
-        process_git_task(data['job']['code_url'])
-    else:
-        process_zip_task(data['job']['code_bytes'])
-
+    idstr = process_zip_task(data['job']['code_bytes'],job_id)
     result = ""
-    with open("./output", "r") as f:
-        result += f.read()
-    
-    #time.sleep(5)
-
     status = 0
-    with open("./status", "r") as f:
-        status = int(f.readline())
-
+    if idstr!='':
+        with open(f"./output{idstr}", "r") as f:
+            result += f.read()
+        with open(f"./status{idstr}", "r") as f:
+            status = int(f.readline())
+        print(f'removing output and status for {idstr}')
+        os.system(f'rm ./output{idstr}')
+        os.system(f'rm ./status{idstr}')                
+    else:
+        status = -1
     # Once the job succeeds/fails, notify the server
     status = STATUS_SUCCEDED if status == 0 else STATUS_FAILED
-    
     resp = requests.post(f"{SERVER_ENDPOINT}/jobs/{job_id}/update_status/", json={"device_id" : device_id, "status" : status, "result" : result}).json()
 
     print("Response from notifying server of job status: {}".format(status))
@@ -76,31 +77,40 @@ def process_git_task(url): #not really in use anymore
     os.system('echo $? > ./status')
     # remove the git repo
     os.system('rm -rf {}'.format(directory))
+    return True
 
-def process_zip_task(contents,persist=''):
+def process_zip_task(contents,job_id,persist=''):
+    timestamp = str(time.time())
+    idstr = f'{timestamp}{job_id}'
     owd = os.getcwd()
-    zipObj = ZipFile('temp.zip', 'w')
+    print(f'Creating a temp for {idstr}')
+    zipObj = ZipFile(f'temp{idstr}.zip', 'w')
     for obj in contents:
         try:
             fn = obj['filename']
             byts = obj['bytes']
             zipObj.writestr(fn,byts)
         except TypeError:
-            #print("TypeError")
-            #print(obj)
-            #TODO: what is happening
-            return
-    zipObj.extractall(path='temp')
-    os.system('rm temp.zip')
-    os.system('cp cli.py temp/main/')
-    os.chdir(owd+'/temp/main')
-    os.system('mkdir output_tmp')
-    os.system('chmod u+x main.sh')
-    os.system('./main.sh > ../../output')
-    os.system('echo $? > ../../status')
-    os.system(f'mv output_tmp {owd}') #hmm what happens if no output folder, need to zip
-    os.chdir(owd)
-    os.system('rm -rf temp')
+            return '' #empty job
+    try:
+        zipObj.extractall(path=f'temp{idstr}')
+    except EOFError:
+        return ''
+
+    os.system(f'cp cli.py temp{idstr}/main/')
+    #os.chdir(owd+f'/temp{idstr}/main')
+    os.system(f'chmod u+x {owd}/temp{idstr}/main/main.sh')
+    #new addition to API
+    os.system(f'{owd}/temp{idstr}/main/main.sh {owd}/temp{idstr}/main/ > {owd}/temp{idstr}/main/output{idstr}')
+    os.system(f'echo $? > {owd}/temp{idstr}/main/status{idstr}')
+    print(f'Creating output and status for {idstr}')
+    os.system(f'mv {owd}/temp{idstr}/main/output{idstr} .')
+    os.system(f'mv {owd}/temp{idstr}/main/status{idstr} .')    
+    #os.chdir(owd)
+    print(f'Removing a temp for {idstr}')
+    os.system(f'rm temp{idstr}.zip')
+    os.system(f'rm -rf temp{idstr}')
+    return idstr
 
 
 sio.connect(f"{SERVER_ENDPOINT}/?device_id={device_id}")

@@ -11,7 +11,7 @@ from flask_socketio import SocketIO, send, emit
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "actualsecret"
-socketio = SocketIO(app)
+socketio = SocketIO(app,ping_timeout=60)
 
 import db
 
@@ -27,9 +27,9 @@ import time
 # 3. if job repeatedly fails, then stop it after 3 retries
 # 4. if phone does not acknowledge task, increment its failed acks num
 
-MAX_FAILS = 100 #max fails is for full decomissioning
-CHECK_JOBS_INTERVAL_SEC = 0.1 #check for jobs that need to be scheduled
-ACK_TIMEOUT = 3 #no ack for 3s, time out 
+MAX_FAILS = 1000 #max fails is for full decomissioning, we make it big for this
+CHECK_JOBS_INTERVAL_SEC = 0.5 #check for jobs that need to be scheduled
+ACK_TIMEOUT = 10 #no ack for 10s, time out 
 class Checker:
 
     def __init__(self):
@@ -43,7 +43,7 @@ class Checker:
         while not self.stopped:
             #print("[CHECKING JOBS]")
             jobs = db.get_all_jobs()
-
+            jobs_remaining = []
             # ==== for each job ====
             for job in jobs:
                 job_json = job.to_json()
@@ -68,6 +68,7 @@ class Checker:
 
                 # For unassigned jobs.
                 if job_json["status"] == job.UNASSIGNED:
+                    jobs_remaining.append(job.id)
                     # Check if the phone has not acknowledged the job for 10 seconds. If so, then increase the num_failed_acks and reschedule the job
                     time_updated = datetime.strptime(job_json["time_updated"], '%Y-%m-%d %H:%M:%S.%f')
                     timeout_datetime = timedelta(seconds = ACK_TIMEOUT) + time_updated
@@ -86,9 +87,10 @@ class Checker:
                     # For jobs that are just unassigned in general, hence there is no pending ack's:
                     elif job.id not in self.pending_job_acks and job.can_be_retried:
                         schedule_job(job)
-
+                        
                 # For failed jobs: retry them.
                 if job_json["status"] == job.FAILED and job.can_be_retried:
+                    jobs_remaining.append(job.id)                    
                     schedule_job(job)
 
 
@@ -161,6 +163,7 @@ def schedule_job(job):
         return False
 
     # used to make sure that the phone eventually acknowledges it, if not then we reschedule the job
+    # jen -- try setting assigned_device here
     checker.add_pending_acknowledgement(job.id, device_id)
     return True
 
@@ -286,9 +289,11 @@ def job_update_status(job_id):
         # This job has finished, so it's no longer assigned to a device
         job.assigned_device = None
 
-        if result:
-            print(f"\n\n[JOB RESULT] Received output for job id {job_id}:")
-            print(result, "\n\n")
+        # if result:
+        #     print(f"\n\n[JOB RESULT] Received output for job id {job_id}:")
+        #     print(result, "\n\n")
+        #     if status == db.Job.FAILED:
+        #         print('RESULT BUT JOB FAILED')
         job.result = result
 
     job.save()
@@ -355,13 +360,12 @@ def handle_phone_response(data):
     job.assigned_device = device_id
     job.num_attempts += 1
     job.save()
-
     checker.remove_pending_acknowledgement(job.id)
-
     print (f"Device id={device_id} has acknowledged job id={job_id}")
 
 
 if __name__ == '__main__':
     # app.run(host="0.0.0.0")
+    
     socketio.run(app, host='0.0.0.0', debug=False)
     # socketio.run(app, host='0.0.0.0', debug=True)

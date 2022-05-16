@@ -40,9 +40,6 @@ class MapReduce():
 
     def checker(self,job_id,chunk_id):
         job_status_code = None    
-        spinner = Halo(text="Waiting for job updates", spinner='dots')
-        spinner.start()
-
         t_end = time.time() + 120 #edit to be programmatic
         while time.time() < t_end:
             try:
@@ -50,26 +47,21 @@ class MapReduce():
                 new_job_status_code = resp['status_code']
                 if new_job_status_code != job_status_code:
                     if new_job_status_code in ("UNASSIGNED", "ASSIGNED"):
-                        spinner.info(STATUS_CODE_MESSAGES[new_job_status_code])
-                        spinner.start("Waiting for job updates")
+                        pass
                     elif new_job_status_code == "FAILED":
-                        spinner.fail(STATUS_CODE_MESSAGES[new_job_status_code])
-                        spinner.start("Waiting for job updates")
+                        pass
                     else:
                         self.mapper_success(resp,chunk_id)
-                        spinner.stop_and_persist(symbol='🦄'.encode('utf-8'), text=STATUS_CODE_MESSAGES[new_job_status_code])
                         break
                     job_status_code = new_job_status_code
                     time.sleep(JOB_STATUS_POLL_INTERVAL_SECS)
             except (KeyboardInterrupt, SystemExit):
-                spinner.stop()
                 break
     def mapper_success(self,response_message,chunk_id):
         # the job has succeeded
         outfile = f"chunk{chunk_id}.txt"
         with open(outfile,'w+') as f:
             f.write(response_message['result'])
-        #TODO: move to db
         #mr_db.put_in_db(outfile)
         self.mappers_todo.discard(chunk_id)        
     def submit_job(self,zipf,chunk_id):
@@ -94,20 +86,15 @@ class MapReduce():
         }
         print ("Submitting job...")
         res = requests.post(submit_job_url, json=job_spec)
+        print ("Submitted")
         if res.status_code != 200:
-            print ("Could not submit job, trying again..")
-            time.sleep(0.5) #todo ?
-            self.submit_job(zipf,chunk_id)
-
+            print ("Could not submit job, returning..")
         resp = res.json()
         if not resp.get("job_id", False):
             print("No job ID returned, returning..")
-            return
-        #    print ("Could not submit job! 2")
-        #    time.sleep(1) #todo ?
-        #    self.submit_job(zipf,chunk_id)
-            
+            return            
         job_id = resp['job_id']
+        print("Starting Checker")
         th = threading.Thread(target=self.checker,args=(job_id,chunk_id))
         th.start()
 
@@ -129,7 +116,7 @@ class MapReduce():
         pass
     def logger(self):
         while True:
-            time.sleep(1)
+            time.sleep(2)
             print(self.mappers_todo)
     def run(self,level):
         #init the logger
@@ -137,7 +124,7 @@ class MapReduce():
         #thc.start()
         #asynchronously spin up the mappers
         for (chunk_id,chunk) in self.chunks.items():
-            #time.sleep(0.4) #todo -- shouldn't really be necessary
+            #time.sleep(0.2) #check
             self.init_mapper(chunk,chunk_id)
         #wait for the mappers to complete
         while len(self.mappers_todo) > 0:

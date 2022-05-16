@@ -4,6 +4,7 @@ import zipfile
 import requests, argparse
 import socketio
 import threading
+import json
 from halo import Halo
 
 JOB_STATUS_POLL_INTERVAL_SECS = 0.1
