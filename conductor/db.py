@@ -14,6 +14,8 @@ HEARTBEAT_ACTIVE_RANGE_SECONDS = 1.5
 METADATA_HISTORY_SIZE = 5
 MAX_JOB_ATTEMPTS = 5
 
+LAST_DEVICE=-1 #jfs this is gross
+
 class BaseModel(Model):
     class Meta:
         database = db
@@ -207,13 +209,18 @@ def get_target_device_for_job():
     # Choose a device id that currently doesn't have any assigned jobs
     # TODO: This logic would of course change once we begin to account for cpus/mem, at which point,
     #  the device selection query would select all devices that have enough resources to run this job, etc.
+    # jen -- check this logic
+    global LAST_DEVICE
     candidate_devices_for_job = get_devices_not_currently_in_use()
     candidate_devices_for_job = [device for device in candidate_devices_for_job if (device.is_active and not device.decommissioned)]
     candidate_devices_for_job = sorted(candidate_devices_for_job, key = lambda device: device.get_avg_historical_system_metric(metric_name="cpu"))
     if not candidate_devices_for_job:
+        if len(get_all_devices())>0:
+            return get_all_devices()[0]
         return None
     # Pick the device that's available, healthy, and has the lowest historical avg. cpu usage
-    return candidate_devices_for_job[0]
+    target_device = candidate_devices_for_job[0]
+    return target_device
 
 def schedule_job(job,fn=None):
     # Choose a device to send this job to
@@ -223,7 +230,6 @@ def schedule_job(job,fn=None):
 
     if not target_device:
         return None
-    
     update_job(job.id, job.UNASSIGNED)
     job.save()
     if fn: #transfer zip file directly
