@@ -35,16 +35,14 @@ def task_submission(data):
     if device_id != data['device_id']:
         return
 
-    th = threading.Thread(target=handle_received_task,args=(data,))
-    th.start()
-    
-def handle_received_task(data):
     job_id = data['job']['id']
     sio.emit('task_acknowledgement', {'device_id': device_id, 'job_id' : job_id})
 
+    th = threading.Thread(target=handle_received_task,args=(data,job_id))
+    th.start()
+    
+def handle_received_task(data,job_id):
     print('Working on job id={}: '.format(job_id))
-    #print(data['job'])
-
     idstr = process_zip_task(data['job']['code_bytes'],job_id)
     result = ""
     status = 0
@@ -98,17 +96,12 @@ def process_zip_task(contents,job_id,persist=''):
         return ''
 
     os.system(f'cp cli.py temp{idstr}/main/')
-    #os.chdir(owd+f'/temp{idstr}/main')
+    os.system(f'rm temp{idstr}.zip')    
     os.system(f'chmod u+x {owd}/temp{idstr}/main/main.sh')
-    #new addition to API
     os.system(f'{owd}/temp{idstr}/main/main.sh {owd}/temp{idstr}/main/ > {owd}/temp{idstr}/main/output{idstr}')
     os.system(f'echo $? > {owd}/temp{idstr}/main/status{idstr}')
-    print(f'Creating output and status for {idstr}')
     os.system(f'mv {owd}/temp{idstr}/main/output{idstr} .')
     os.system(f'mv {owd}/temp{idstr}/main/status{idstr} .')    
-    #os.chdir(owd)
-    print(f'Removing a temp for {idstr}')
-    os.system(f'rm temp{idstr}.zip')
     os.system(f'rm -rf temp{idstr}')
     return idstr
 

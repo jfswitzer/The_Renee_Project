@@ -8,7 +8,7 @@ import time
 from halo import Halo
 import mr_db
 import json
-JOB_STATUS_POLL_INTERVAL_SECS = 0.1
+JOB_STATUS_POLL_INTERVAL_SECS = 0.2
 ENDPOINT = 'localhost'
 with open("../config.json") as f:
     ENDPOINT = json.load(f)["conductor_IP"]
@@ -52,6 +52,7 @@ class MapReduce():
                         pass
                     else:
                         self.mapper_success(resp,chunk_id)
+                        print(f'{chunk_id}: {new_job_status_code}')
                         break
                     job_status_code = new_job_status_code
                     time.sleep(JOB_STATUS_POLL_INTERVAL_SECS)
@@ -59,10 +60,17 @@ class MapReduce():
                 break
     def mapper_success(self,response_message,chunk_id):
         # the job has succeeded
+        print('in mapper success')
         outfile = f"chunk{chunk_id}.txt"
         with open(outfile,'w+') as f:
-            f.write(response_message['result'])
+            #print(f'writing to {chunk_id}')
+            #print(response_message['result'])
+            try:
+                f.write(response_message['result'])
+            except(e):
+                print(f'Error Writing: {e}')
         #mr_db.put_in_db(outfile)
+        print(f'discarding {chunk_id}')
         self.mappers_todo.discard(chunk_id)        
     def submit_job(self,zipf,chunk_id):
         """zipfile points to the zipfile that contains the code"""
@@ -116,15 +124,14 @@ class MapReduce():
         pass
     def logger(self):
         while True:
-            time.sleep(2)
-            print(self.mappers_todo)
+            time.sleep(1)
+            print(len(self.mappers_todo))
     def run(self,level):
         #init the logger
         #thc = threading.Thread(target=self.logger)
         #thc.start()
         #asynchronously spin up the mappers
         for (chunk_id,chunk) in self.chunks.items():
-            #time.sleep(0.2) #check
             self.init_mapper(chunk,chunk_id)
         #wait for the mappers to complete
         while len(self.mappers_todo) > 0:

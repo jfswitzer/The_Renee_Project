@@ -27,7 +27,7 @@ import time
 # 3. if job repeatedly fails, then stop it after 3 retries
 # 4. if phone does not acknowledge task, increment its failed acks num
 
-MAX_FAILS = 1000 #max fails is for full decomissioning, we make it big for this
+MAX_FAILS = 10000 #max fails is for full decomissioning, we make it big for this
 CHECK_JOBS_INTERVAL_SEC = 0.5 #check for jobs that need to be scheduled
 ACK_TIMEOUT = 10 #no ack for 10s, time out 
 class Checker:
@@ -278,7 +278,10 @@ def job_update_status(job_id):
         return jsonify(success=False, error_code="INVALID_JOB_ID"), 400
 
     if not job.assigned_device:
-        return jsonify(success=False, error_code="CANNOT_UPDATE_UNASSIGNED_JOB")
+        #just trust that the device knows what it's doing
+        job.assigned_device = device
+        checker.remove_pending_acknowledgement(job.id)
+        #return jsonify(success=False, error_code="CANNOT_UPDATE_UNASSIGNED_JOB")
 
     if job.assigned_device.id != device_id:
         return jsonify(success=False, error_code="JOB_ASSIGNED_TO_ANOTHER_DEVICE"), 400
