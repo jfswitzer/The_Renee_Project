@@ -40,7 +40,7 @@ class MapReduce():
 
     def checker(self,job_id,chunk_id):
         job_status_code = None    
-        t_end = time.time() + 120 #edit to be programmatic
+        t_end = time.time() + 600 #edit to be programmatic
         while time.time() < t_end:
             try:
                 resp = get_job_status(job_id)
