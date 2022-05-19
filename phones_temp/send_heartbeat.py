@@ -4,7 +4,7 @@ import threading
 import sys
 import json
 
-HEARTBEAT_INTERVAL_SECS = 0.1
+HEARTBEAT_INTERVAL_SECS = 0.33
 ENDPOINT = 'localhost'
 with open("../config.json") as f:
     ENDPOINT = json.load(f)["conductor_IP"]

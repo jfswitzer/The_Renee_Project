@@ -1,7 +1,7 @@
 from peewee import *
 from playhouse.sqlite_ext import *
 import datetime, power
-
+import random
 try:
     from __main__ import socketio
 except ImportError:
@@ -10,7 +10,7 @@ except ImportError:
 db = SqliteDatabase('database.db')
 
 # number of minutes in between heart beats that still considers the device is alive and healthy
-HEARTBEAT_ACTIVE_RANGE_SECONDS = 1.5
+HEARTBEAT_ACTIVE_RANGE_SECONDS = 1
 METADATA_HISTORY_SIZE = 5
 MAX_JOB_ATTEMPTS = 5
 
@@ -213,13 +213,19 @@ def get_target_device_for_job():
     global LAST_DEVICE
     candidate_devices_for_job = get_devices_not_currently_in_use()
     candidate_devices_for_job = [device for device in candidate_devices_for_job if (device.is_active and not device.decommissioned)]
-    candidate_devices_for_job = sorted(candidate_devices_for_job, key = lambda device: device.get_avg_historical_system_metric(metric_name="cpu"))
-    if not candidate_devices_for_job:
-        if len(get_all_devices())>0:
-            return get_all_devices()[0]
+    print(candidate_devices_for_job)
+    if candidate_devices_for_job:
+        #print("A")
+        #candidate_devices_for_job.sort(key=lambda d: int(d.last_heartbeat.timestamp()))
+        #target_device = candidate_devices_for_job[-1]
+        target_device = candidate_devices_for_job[random.randint(0,len(candidate_devices_for_job)-1)]
+    else:
+        #print("B")
+        #devices = get_all_devices()
+        #devices.sort(key=lambda d: int(d.last_heartbeat.timestamp()))
+        #target_device = devices[-1]
+        #target_device = devices[random.randint(0,len(devices)-1)]
         return None
-    # Pick the device that's available, healthy, and has the lowest historical avg. cpu usage
-    target_device = candidate_devices_for_job[0]
     return target_device
 
 def schedule_job(job,fn=None):
@@ -229,9 +235,15 @@ def schedule_job(job,fn=None):
     target_device = get_target_device_for_job()
 
     if not target_device:
-        return None
-    update_job(job.id, job.UNASSIGNED)
+        job.status = Job.UNASSIGNED
+        job.save()
+        return 0
+    job.status = Job.ASSIGNED
+    job.assigned_device = target_device.id
+    job.num_attempts += 1
     job.save()
+    #update_job(job.id, job.UNASSIGNED)
+    #job.save()
     if fn: #transfer zip file directly
         with read(fn,'rb') as file_data:
             socketio.emit("task_submission", {'device_id': target_device.id, 'job': job.to_json()})

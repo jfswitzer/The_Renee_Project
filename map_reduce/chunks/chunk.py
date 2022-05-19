@@ -10,7 +10,7 @@ vehicle_types = ['small_vehicle','large_vehicle']
 for i in range(50):
     fileName = "chunk"+str(i)+".txt"
     text_file = open(fileName, "w")
-    for i in range(100000):
+    for i in range(20000):
         direction = random.randint(0, 360)
         timestamp = random.randint(1564643005310, 1586728880860)
         vehicle_count = random.randint(0, 10)

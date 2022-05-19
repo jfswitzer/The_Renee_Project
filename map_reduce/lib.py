@@ -95,13 +95,13 @@ class MapReduce():
         print ("Submitting job...")
         res = requests.post(submit_job_url, json=job_spec)
         print ("Submitted")
-        if res.status_code != 200:
-            print ("Could not submit job, returning..")
-        resp = res.json()
-        if not resp.get("job_id", False):
-            print("No job ID returned, returning..")
-            return            
-        job_id = resp['job_id']
+        #if res.status_code != 200:
+        #    print ("Could not submit job, returning..")
+        #resp = res.json()
+        #if not resp.get("job_id", False):
+        #    print("No job ID returned, returning..")
+        #    return            
+        job_id = res.json()['job_id']
         print("Starting Checker")
         th = threading.Thread(target=self.checker,args=(job_id,chunk_id))
         th.start()
@@ -133,6 +133,7 @@ class MapReduce():
         #asynchronously spin up the mappers
         for (chunk_id,chunk) in self.chunks.items():
             self.init_mapper(chunk,chunk_id)
+            #time.sleep(0.1)
         #wait for the mappers to complete
         while len(self.mappers_todo) > 0:
             pass

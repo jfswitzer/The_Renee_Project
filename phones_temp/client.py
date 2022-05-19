@@ -38,9 +38,8 @@ def task_submission(data):
     job_id = data['job']['id']
     sio.emit('task_acknowledgement', {'device_id': device_id, 'job_id' : job_id})
 
-    handle_received_task(data,job_id)
-    #th = threading.Thread(target=handle_received_task,args=(data,job_id))
-    #th.start()
+    th = threading.Thread(target=handle_received_task,args=(data,job_id))
+    th.start()
     
 def handle_received_task(data,job_id):
     print('Working on job id={}: '.format(job_id))

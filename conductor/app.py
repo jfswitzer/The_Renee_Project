@@ -19,7 +19,7 @@ import db
 import threading
 from datetime import timedelta
 import time
-
+import random
 # ============== BEGINNING OF CHECKER CODE ============== #
 # Checker Chron
 # 1. checks each job to see if they time out
@@ -29,7 +29,7 @@ import time
 
 MAX_FAILS = 10000 #max fails is for full decomissioning, we make it big for this
 CHECK_JOBS_INTERVAL_SEC = 0.5 #check for jobs that need to be scheduled
-ACK_TIMEOUT = 10 #no ack for 10s, time out 
+ACK_TIMEOUT = 600 #no ack for 10s, time out -> jen: basically nuking for now
 class Checker:
 
     def __init__(self):
@@ -43,7 +43,6 @@ class Checker:
         while not self.stopped:
             #print("[CHECKING JOBS]")
             jobs = db.get_all_jobs()
-            jobs_remaining = []
             # ==== for each job ====
             for job in jobs:
                 job_json = job.to_json()
@@ -68,36 +67,33 @@ class Checker:
 
                 # For unassigned jobs.
                 if job_json["status"] == job.UNASSIGNED:
-                    jobs_remaining.append(job.id)
-                    # Check if the phone has not acknowledged the job for 10 seconds. If so, then increase the num_failed_acks and reschedule the job
-                    time_updated = datetime.strptime(job_json["time_updated"], '%Y-%m-%d %H:%M:%S.%f')
-                    timeout_datetime = timedelta(seconds = ACK_TIMEOUT) + time_updated
-                    if timeout_datetime < datetime.utcnow() and job.id in self.pending_job_acks:
+                    schedule_job(job)
+                    # jobs_remaining.append(job.id)
+                      # # Check if the phone has not acknowledged the job for 10 seconds. If so, then increase the num_failed_acks and reschedule the job
+                    # time_updated = datetime.strptime(job_json["time_updated"], '%Y-%m-%d %H:%M:%S.%f')
+                    # timeout_datetime = timedelta(seconds = ACK_TIMEOUT) + time_updated
+                    # if timeout_datetime < datetime.utcnow() and job.id in self.pending_job_acks:
 
-                        # update device's num_failed_acks
-                        device = db.get_device(self.pending_job_acks[job.id])
-                        device.num_failed_acks += 1
-                        device.save()
+                    #     # update device's num_failed_acks
+                    #     device = db.get_device(self.pending_job_acks[job.id])
+                    #     device.num_failed_acks += 1
+                    #     device.save()
 
-                        print("[NO DEVICE ACK]: Device", device.id, "on Job", job.id)
+                    #     print("[NO DEVICE ACK]: Device", device.id, "on Job", job.id)
 
-                        self.remove_pending_acknowledgement(job.id)
-                        self.cancel_and_reschedule_job(job.id)
+                    #     self.remove_pending_acknowledgement(job.id)
+                    #     self.cancel_and_reschedule_job(job.id)
 
-                    # For jobs that are just unassigned in general, hence there is no pending ack's:
-                    elif job.id not in self.pending_job_acks and job.can_be_retried:
-                        schedule_job(job)
+                    # # For jobs that are just unassigned in general, hence there is no pending ack's:
+                    # elif job.id not in self.pending_job_acks and job.can_be_retried:
+                    #     schedule_job(job)
                         
                 # For failed jobs: retry them.
                 if job_json["status"] == job.FAILED and job.can_be_retried:
-                    jobs_remaining.append(job.id)                    
                     schedule_job(job)
 
 
             # ==== END of "for each job" section ====
-
-            # Start another thread in a few seconds
-            # threading.Timer(CHECK_JOBS_INTERVAL_SEC, self.check_jobs).start()
             time.sleep(CHECK_JOBS_INTERVAL_SEC)
 
 
@@ -158,12 +154,8 @@ eventlet.spawn(checker.check_phones)
 
 def schedule_job(job):
     device_id = db.schedule_job(job)
-    if device_id is None:
-        print("[NO DEVICES AVAILABLE]")
-        return False
-
-    # used to make sure that the phone eventually acknowledges it, if not then we reschedule the job
-    # jen -- try setting assigned_device here
+    if device_id==0:
+        return True
     checker.add_pending_acknowledgement(job.id, device_id)
     return True
 
@@ -197,6 +189,7 @@ def register_device():
 
 @app.route("/devices/<int:device_id>/heartbeat/", methods=['POST'])
 def device_heartbeat(device_id):
+    #print(f"hb {device_id}")
     device = db.get_device(device_id=device_id)
     if not device:
         return jsonify(success=False, error_code="DEVICE_NOT_FOUND"), 400
@@ -236,8 +229,8 @@ def job_submit():
     job = db.create_job(job_spec=body)
 
     job_schedule_success = schedule_job(job)
-    if not job_schedule_success:
-        return jsonify(success=False, error_code="NO_DEVICES_ARE_AVAILABLE"), 500
+    #if not job_schedule_success:
+    #    return jsonify(success=False, error_code="NO_DEVICES_ARE_AVAILABLE"), 500
 
     return jsonify(success=True, job_id=job.id)
 
@@ -274,6 +267,9 @@ def job_update_status(job_id):
         return jsonify(success=False, error_code="INVALID_DEVICE_ID"), 400
 
     job = db.get_job(job_id)
+
+    if job.status==db.Job.SUCCEEDED:
+        return jsonify(success=False, error_code="JOB_ALREADY_DONE"), 400        
     if not job:
         return jsonify(success=False, error_code="INVALID_JOB_ID"), 400
 
@@ -291,7 +287,8 @@ def job_update_status(job_id):
     if status == db.Job.SUCCEEDED or status == db.Job.FAILED:
         # This job has finished, so it's no longer assigned to a device
         job.assigned_device = None
-
+        print(f'job {job.id} succeeded')
+        job.status = db.Job.SUCCEEDED
         # if result:
         #     print(f"\n\n[JOB RESULT] Received output for job id {job_id}:")
         #     print(result, "\n\n")
@@ -331,8 +328,14 @@ def test_connect():
 
 @socketio.on('disconnect')
 def test_disconnect():
-    print('A device has disconnected')
-
+    device_id = request.args.get("device_id", type=int)
+    device = db.get_device(device_id=device_id)
+    for job in db.get_all_jobs():
+        job_json = job.to_json()        
+        if job.status != db.Job.SUCCEEDED:
+            job.assigned_device = None
+            job.status = db.Job.UNASSIGNED
+            job.save()
 @socketio.on('cancel_job')
 def handle_phone_cancel_job_response(data):
     success = data['success']
@@ -358,12 +361,12 @@ def handle_phone_response(data):
     device_id = data['device_id']
     job_id = data['job_id']
 
-    job = db.get_job(job_id=job_id)
-    job.status = db.Job.ASSIGNED
-    job.assigned_device = device_id
-    job.num_attempts += 1
-    job.save()
-    checker.remove_pending_acknowledgement(job.id)
+#    job = db.get_job(job_id=job_id)
+#    job.status = db.Job.ASSIGNED
+#    job.assigned_device = device_id
+#    job.num_attempts += 1
+#    job.save()
+    checker.remove_pending_acknowledgement(job_id)
     print (f"Device id={device_id} has acknowledged job id={job_id}")
 
 
