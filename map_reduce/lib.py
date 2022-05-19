@@ -76,7 +76,7 @@ class MapReduce():
         """zipfile points to the zipfile that contains the code"""
         cpus = -1
         memory_mb = -1
-        max_runtime_secs = 120 #make programma
+        max_runtime_secs = 10
         contents = []
         z = zipfile.ZipFile(zipf, "r")
         for filename in z.namelist(  ):
